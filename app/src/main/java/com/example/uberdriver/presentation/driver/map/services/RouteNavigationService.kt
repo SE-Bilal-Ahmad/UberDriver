@@ -2,9 +2,9 @@ package com.example.uberdriver.presentation.driver.map.services
 
 import android.content.Context
 import android.graphics.Color
+import android.location.Location
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.example.uber.data.remote.api.googleMaps.models.directionsResponse.Distance
@@ -198,23 +198,77 @@ class RouteNavigationService(
 
     private fun driverReachedToLocation(value: LatLng) {
         routePoints?.let {
-            driverViewModel?.driverId?.let { a ->
-                cleanMap()
-                tripViewModel.ride.value?.let { trip ->
-                    tripViewModel.reachedRiderPickUpSpot(
-                        ReachedRider(
-                            trip.riderId,
-                            a,
-                            trip.rideId,
-                            true,
+            checkIfDriverInRiderPickupPoint(value)
+            checkIfDriverInRiderDropOffPoint(value)
+        }
+    }
+
+    private fun checkIfDriverInRiderPickupPoint(
+        driverLocation: LatLng
+    ) {
+        val results = FloatArray(1)
+        location?.let {
+            var distance = Location.distanceBetween(
+                driverLocation.latitude,
+                driverLocation.longitude,
+                it.latitude,
+                it.longitude,
+                results
+            )
+
+            if (results[0] <= 50) {
+                driverViewModel?.driverId?.let { a ->
+                    cleanMap()
+                    tripViewModel.ride.value?.let { trip ->
+                        tripViewModel.reachedRiderPickUpSpot(
+                            ReachedRider(
+                                trip.riderId,
+                                a,
+                                trip.rideId,
+                                true,
+                            )
                         )
-                    )
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        mapAndCardSharedViewModel.setPickUpLocationReached(true)
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            tripViewModel.setPickUpLocationReached(true)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun checkIfDriverInRiderDropOffPoint(
+        driverLocation: LatLng
+    ) {
+        val results = FloatArray(1)
+        location?.let {
+            var distance = Location.distanceBetween(
+                driverLocation.latitude,
+                driverLocation.longitude,
+                it.latitude,
+                it.longitude,
+                results
+            )
+            if (results[0] <= 50) {
+                driverViewModel?.driverId?.let { a ->
+                    cleanMap()
+                    tripViewModel.ride.value?.let { trip ->
+                        tripViewModel.reachedDropOffSpot(
+                            ReachedRider(
+                                trip.riderId,
+                                a,
+                                trip.rideId,
+                                true,
+                            )
+                        )
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            mapAndCardSharedViewModel.setDropOffLocationReached(true)
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     private fun getDistanceMatrix(destination: LatLng, origin: LatLng) {
@@ -291,12 +345,12 @@ class RouteNavigationService(
     }
 
     private fun getDistanceFromCurrentPointToDestination(
-        routePoints :MutableList<LatLng>
+        routePoints: MutableList<LatLng>
     ) {
         val distance = Helper.calculatePolylineDistance(routePoints)
         val time = Helper.getUserFetchTime(distance)
         viewLifecycleOwner.lifecycleScope.launch {
-            tripViewModel.updateTripTimeAndDistance(time,distance)
+            tripViewModel.updateTripTimeAndDistance(time, distance)
         }
     }
 

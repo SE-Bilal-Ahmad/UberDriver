@@ -291,6 +291,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         driverMarker = null
         mLastLocation = null
         rideRequestCardService = null
+        stopLocationService()
     }
 
     private fun onGoButtonClickListener() {
@@ -432,8 +433,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     private fun observePickUpLocationReached() {
         viewLifecycleOwner.lifecycleScope.launch {
-            mapAndCardSharedViewModel.apply {
-                reachPickUpLocation.collectLatest {
+            tripViewModel.apply {
+                reachedPickUpLocation.collectLatest {
                     if (it) {
                         binding?.bottomSheet?.visibility = View.VISIBLE
                     }

@@ -1,6 +1,7 @@
 package com.example.uberdriver.presentation.bottomsheet
 
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +15,7 @@ import com.example.uberdriver.R
 import com.example.uberdriver.core.common.ButtonAnimator
 import com.example.uberdriver.core.common.Helper
 import com.example.uberdriver.data.remote.api.backend.rider.model.RiderDetails
+import com.example.uberdriver.data.remote.api.backend.socket.trip.model.TripStarted
 import com.example.uberdriver.databinding.FragmentRiderNotifiedSheetBinding
 import com.example.uberdriver.presentation.driver.map.viewmodel.MapAndCardSharedViewModel
 import com.example.uberdriver.presentation.driver.map.viewmodel.RideViewModel
@@ -88,6 +90,7 @@ class RiderNotifiedSheet : Fragment(R.layout.fragment_rider_notified_sheet) {
         observeRideRequestAccepted()
         observeRideDetails()
         observeUpdatedTripDistanceAndTime()
+        observeDropOffDestinationStarted()
     }
 
     private fun setBottomSheetStyle() {
@@ -111,9 +114,19 @@ class RiderNotifiedSheet : Fragment(R.layout.fragment_rider_notified_sheet) {
                     viewLifecycleOwner.lifecycleScope.launch {
                         tripViewModel.setTripStatus(Pair(false, true))
                         mapAndCardSharedViewModel.setStartRideBtnClicked(true)
+                        tripViewModel.setDropOffDestinationTripStarted(true)
+                        sendTripStartedStatus()
                     }
                 }
             }
+    }
+
+    private fun sendTripStartedStatus() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            tripViewModel.ride.value?.let {
+                tripViewModel.startTrip(TripStarted(it.rideId, it.riderId, it.driverId))
+            }
+        }
     }
 
 
@@ -138,10 +151,14 @@ class RiderNotifiedSheet : Fragment(R.layout.fragment_rider_notified_sheet) {
 
     private fun driverReachedPickUpSpot() {
         viewLifecycleOwner.lifecycleScope.launch {
-            mapAndCardSharedViewModel.reachPickUpLocation.collectLatest {
+            tripViewModel.reachedPickUpLocation.collectLatest {
                 if (it) {
                     bottomSheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
                     bottomSheetBehavior?.isDraggable = true
+                    startCountDownTimer()
+                    toggleRiderNotifiedTime(true)
+                    toggleStartUberBtnVisibility(true)
+                    toggleRiderStatus(false)
                 }
             }
         }
@@ -228,51 +245,87 @@ class RiderNotifiedSheet : Fragment(R.layout.fragment_rider_notified_sheet) {
     private fun updateTimeAndDistance(directions: DirectionsResponse) {
         val miles: Double = Helper.covertMetersToMiles(directions.routes[0].legs[0].distance.value)
         val time: Int = Helper.convertSecondsToMinutes(directions.routes[0].legs[0].duration.value)
-        updateTimeAndDistanceText(time,miles)
+        updateTimeAndDistanceText(time, miles)
     }
 
     private fun observeUpdatedTripDistanceAndTime() {
         viewLifecycleOwner.lifecycleScope.launch {
             tripViewModel.timeAndDistance.collectLatest {
-                updateTimeAndDistanceText(it.first,it.second)
+                updateTimeAndDistanceText(it.first, it.second)
             }
         }
     }
 
-    private fun updateTimeAndDistanceText(time:Int,distance:Double){
+    private fun updateTimeAndDistanceText(time: Int, distance: Double) {
         binding?.tvDistanceToReach?.text = distance.toString() + " mi"
         binding?.tvTimeToReach?.text = time.toString() + " min"
     }
 
-        private fun hideSheetContent() {
-            binding?.llCurrentRiderStatus?.visibility = View.VISIBLE
-            binding?.mcSheet?.visibility = View.GONE
-            showSheetInCollapsed()
-        }
+    private fun hideSheetContent() {
+        binding?.llCurrentRiderStatus?.visibility = View.VISIBLE
+        binding?.mcSheet?.visibility = View.GONE
+        showSheetInCollapsed()
+    }
 
-        private fun registerBottomSheetBehaviourCallback() {
-            bottomSheetBehavior?.addBottomSheetCallback(bottomSheetBehaviourCallback)
-        }
+    private fun registerBottomSheetBehaviourCallback() {
+        bottomSheetBehavior?.addBottomSheetCallback(bottomSheetBehaviourCallback)
+    }
 
-        private val bottomSheetBehaviourCallback =
-            object : BottomSheetBehavior.BottomSheetCallback() {
-                override fun onStateChanged(bottomSheet: View, newState: Int) {
-
-                }
-
-                override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                    if (slideOffset >= 0.2f) {
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            mapAndCardSharedViewModel.setNavigateButtonStatus(false)
-                        }
-                    } else if (slideOffset <= 0.1f) {
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            mapAndCardSharedViewModel.setNavigateButtonStatus(true)
-                        }
-                    }
-                }
+    private val bottomSheetBehaviourCallback =
+        object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
 
             }
 
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                if (slideOffset >= 0.2f) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        mapAndCardSharedViewModel.setNavigateButtonStatus(false)
+                    }
+                } else if (slideOffset <= 0.1f) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        mapAndCardSharedViewModel.setNavigateButtonStatus(true)
+                    }
+                }
+            }
 
+        }
+
+    private fun startCountDownTimer() {
+        object : CountDownTimer(5 * 60 * 1000L, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val minutes = (millisUntilFinished / 1000) / 60
+                val seconds = (millisUntilFinished / 1000) % 60
+                binding?.tvRiderNotifiedTime?.text = "$minutes : $seconds"
+            }
+
+            override fun onFinish() {
+            }
+
+        }.start()
     }
+
+    private fun toggleRiderNotifiedTime(value: Boolean) {
+        binding?.llTimeForRider?.visibility = if (value) View.VISIBLE else View.GONE
+    }
+
+    private fun observeDropOffDestinationStarted() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            tripViewModel.dropOffDestinationTripStarted.collectLatest {
+                if (it) {
+                    toggleRiderNotifiedTime(false)
+                    toggleStartUberBtnVisibility(false)
+                }
+            }
+        }
+    }
+
+    private fun toggleStartUberBtnVisibility(value: Boolean) {
+        binding?.startRide?.visibility = if (value) View.VISIBLE else View.GONE
+    }
+
+    private fun toggleRiderStatus(value: Boolean) {
+        binding?.llCurrentRiderStatus?.visibility = if (value) View.VISIBLE else View.GONE
+    }
+
+}

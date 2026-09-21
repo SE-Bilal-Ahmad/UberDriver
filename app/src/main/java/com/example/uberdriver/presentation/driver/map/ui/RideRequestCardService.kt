@@ -80,8 +80,11 @@ class RideRequestCardService(
             latitude = lat
             longitude = lng
         }, Location("").apply {
-            latitude = locationViewModel.location.value!!.latitude
-            longitude = locationViewModel.location.value!!.longitude
+            locationViewModel.location.value?.let {a->
+                latitude = a.latitude
+                longitude = a.longitude
+            }
+
         }))
     }
 

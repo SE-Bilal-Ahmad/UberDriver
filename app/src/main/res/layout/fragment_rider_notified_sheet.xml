@@ -158,6 +158,7 @@
                     android:gravity="center">
 
                     <TextView
+                        android:id="@+id/tv_rider_notified_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
@@ -223,6 +224,7 @@
             <com.ncorti.slidetoact.SlideToActView
                 android:id="@+id/start_ride"
                 app:rotate_icon="false"
+                android:visibility="visible"
                 android:layout_width="match_parent"
                 app:border_radius="@dimen/_6sdp"
                 android:layout_marginTop="@dimen/_10sdp"

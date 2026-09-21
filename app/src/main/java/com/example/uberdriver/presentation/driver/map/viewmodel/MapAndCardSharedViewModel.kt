@@ -18,9 +18,6 @@ class MapAndCardSharedViewModel @Inject constructor(dispatcher: IDispatchers) :
     private val startRideBtnClicked = MutableSharedFlow<Boolean>()
     val startRideClick get() = startRideBtnClicked.asSharedFlow()
 
-    private val reachedPickUpLocation = MutableSharedFlow<Boolean>()
-    val reachPickUpLocation get() = reachedPickUpLocation.asSharedFlow()
-
     private val reachedDropOffLocation = MutableStateFlow<Boolean>(false)
     val reachDropOffLocation get() = reachedDropOffLocation.asStateFlow()
 
@@ -42,10 +39,6 @@ class MapAndCardSharedViewModel @Inject constructor(dispatcher: IDispatchers) :
 
     suspend fun setStartRideBtnClicked(value: Boolean) {
         startRideBtnClicked.emit(value)
-    }
-
-    suspend fun setPickUpLocationReached(value: Boolean) {
-        reachedPickUpLocation.emit(value)
     }
 
     suspend fun setDropOffLocationReached(value: Boolean) {
